@@ -1,0 +1,5 @@
+{
+  "name": "LyriXStudio",
+  "description": "A professional-grade lyrics editor and previewer supporting LRC, ELRC, and TTML formats with Apple Music-style visualization.",
+  "requestFramePermissions": []
+}
