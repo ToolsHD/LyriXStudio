@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { TimedLine } from '../types';
 
 interface LyricsPreviewProps {
@@ -18,8 +18,6 @@ const LyricsPreview: React.FC<LyricsPreviewProps> = ({
   currentTime, 
   onLineClick, 
   autoScroll, 
-  isPlaying,
-  onTogglePlay,
   definedVoices
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,12 +37,11 @@ const LyricsPreview: React.FC<LyricsPreviewProps> = ({
   }, [activeLineIndex, autoScroll]);
 
   const getAlignmentClass = (voice?: string) => {
-      if (!voice || definedVoices.length <= 1) return 'text-left max-w-4xl mx-auto'; // Standard center-ish
+      if (!voice || definedVoices.length <= 1) return 'text-left max-w-4xl mx-auto'; 
       
       const idx = definedVoices.indexOf(voice);
-      if (idx === -1) return 'text-center max-w-4xl mx-auto'; // Fallback
+      if (idx === -1) return 'text-center max-w-4xl mx-auto'; 
       
-      // Even index = Left (V1, V3...), Odd index = Right (V2, V4...)
       return idx % 2 === 0 
         ? 'text-left mr-auto max-w-[85%] pl-4 md:pl-12' 
         : 'text-right ml-auto max-w-[85%] pr-4 md:pr-12';
@@ -52,15 +49,12 @@ const LyricsPreview: React.FC<LyricsPreviewProps> = ({
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-background group/preview">
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-surface to-background z-0" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.1),transparent_70%)] z-0" />
-
-      {/* Scroller */}
+      {/* Solid background only - No gradients per request */}
+      
       <div 
         ref={containerRef}
-        className="relative h-full overflow-y-auto py-[45vh] scrollbar-hide space-y-12 z-10"
-        style={{ scrollBehavior: 'smooth', contentVisibility: 'auto' }}
+        className="relative h-full overflow-y-auto py-[45vh] scrollbar-hide space-y-10 z-10 px-6"
+        style={{ scrollBehavior: 'smooth' }}
       >
         {lines.length === 0 && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-muted gap-4 pointer-events-none">
@@ -83,15 +77,15 @@ const LyricsPreview: React.FC<LyricsPreviewProps> = ({
               className={`
                 transition-all duration-500 ease-out
                 ${alignClass}
-                ${isActive ? 'opacity-100 blur-0 my-8 scale-100' : 'blur-[1px] scale-95'}
-                ${isPast ? 'opacity-40' : isActive ? '' : 'opacity-20'}
+                ${isActive ? 'opacity-100 blur-0 my-8 scale-100' : 'blur-[1px] scale-95 opacity-50'}
               `}
             >
               <div 
                 className={`
-                   font-bold leading-tight tracking-tight transition-colors duration-300
+                   font-bold leading-tight tracking-tight transition-all duration-300 rounded-xl p-2
                    ${isLineBackground ? 'text-2xl md:text-3xl italic font-light' : 'text-3xl md:text-5xl lg:text-6xl'}
-                   ${isActive ? 'text-white' : 'text-zinc-300 cursor-pointer hover:text-white hover:opacity-80'}
+                   ${isActive ? 'text-text-primary' : 'text-muted cursor-pointer hover:text-text-primary hover:opacity-80'}
+                   ${isActive && !isLineBackground ? 'pl-4 border-l-4 border-accent-primary' : ''}
                 `}
                 onClick={() => !isActive && onLineClick(line.startTime)}
               >
@@ -113,16 +107,14 @@ const LyricsPreview: React.FC<LyricsPreviewProps> = ({
                                         onLineClick(word.startTime);
                                     }}
                                     animate={{
-                                        scale: isCurrentWord ? 1.1 : 1,
+                                        scale: isCurrentWord ? 1.05 : 1,
                                         opacity: isActive && !isPastWord && !isCurrentWord ? (isBgWord ? 0.4 : 0.6) : 1,
-                                        textShadow: isCurrentWord ? "0 0 15px rgba(139,92,246,0.6)" : "0 0 0px rgba(0,0,0,0)",
                                         color: isCurrentWord ? '#ffffff' : 'inherit'
                                     }}
-                                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                    transition={{ duration: 0.1 }}
                                     className={`
                                         inline-block cursor-pointer
-                                        ${isCurrentWord ? 'text-accent-500 font-extrabold' : 'text-white'}
-                                        ${!isActive && !isPastWord ? 'text-inherit' : ''}
+                                        ${isCurrentWord ? 'text-accent-500 font-extrabold' : 'text-inherit'}
                                         ${isBgWord ? 'text-[0.65em] italic font-medium opacity-80' : ''}
                                     `}
                                 >

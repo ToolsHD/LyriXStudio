@@ -10,9 +10,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { 
     Save, Folder, Link as LinkIcon, Upload, Music, FileText, 
     Settings, PlayCircle, Layers, ChevronRight,
-    Download, RefreshCw, X, ScrollText, Trash2, Disc, Menu, Check,
+    Download, RefreshCw, X, ArrowDownWideNarrow, Trash2, Disc, Menu, Check,
     Import, FileAudio, FileCode, Clipboard, Undo2, Redo2, FileEdit,
-    Search, Copy
+    Search, Copy, ScrollText
 } from 'lucide-react';
 // @ts-ignore
 import * as Diff from 'diff';
@@ -225,6 +225,14 @@ export default function App() {
 
           const text = e.clipboardData?.getData('text');
           if (text) {
+              // Enhanced: Check if it's an audio URL first
+              const isAudioUrl = text.match(/^https?:\/\/.+\.(mp3|wav|ogg|m4a)(\?.*)?$/i);
+              if (isAudioUrl) {
+                   if (audioSrc?.startsWith('blob:')) URL.revokeObjectURL(audioSrc);
+                   setAudioSrc(text);
+                   return;
+              }
+
               const doc = parseLyrics(text);
               if (doc.lines.length > 0) {
                   updateLyricsDoc(doc); // Replaces all lyrics
@@ -240,7 +248,7 @@ export default function App() {
           window.removeEventListener('keydown', handleKeyDown);
           window.removeEventListener('paste', handleGlobalPaste);
       };
-  }, [lyricsDoc, history, historyIndex]);
+  }, [lyricsDoc, history, historyIndex, audioSrc]);
 
   const processFile = async (file: File) => {
     if (file.name.match(/\.(mp3|m4a|wav|ogg)$/i)) {
@@ -331,11 +339,6 @@ export default function App() {
           console.error('Failed to copy', err);
           alert('Failed to copy to clipboard');
       }
-  };
-
-  const handleShiftTiming = (amountMs: number) => {
-    const newDoc = shiftTimestamps(lyricsDoc, amountMs / 1000);
-    updateLyricsDoc(newDoc);
   };
 
   const renderDiff = () => {
@@ -522,6 +525,7 @@ export default function App() {
                     onSeek={setCurrentTime}
                     definedVoices={definedVoices}
                     setDefinedVoices={setDefinedVoices}
+                    audioSrc={audioSrc}
                  />
              )}
           </motion.div>
@@ -551,11 +555,7 @@ export default function App() {
                              <Layers size={18} />
                          </button>
                     </div>
-
-                    <div className="bg-card p-1 rounded-lg border border-border flex items-center gap-1 shadow-md mt-2">
-                        <button onClick={() => handleShiftTiming(-100)} className="px-2 py-1.5 text-[10px] font-mono text-muted hover:text-text hover:bg-background rounded transition-colors">-0.1s</button>
-                        <button onClick={() => handleShiftTiming(100)} className="px-2 py-1.5 text-[10px] font-mono text-muted hover:text-text hover:bg-background rounded transition-colors">+0.1s</button>
-                    </div>
+                    {/* Removed redundant -0.1s / +0.1s floating buttons as per request */}
                 </div>
 
                 {/* Diff View Overlay */}
@@ -598,7 +598,7 @@ export default function App() {
         <button onClick={() => setActiveTab('preview')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest ${activeTab === 'preview' ? 'text-accent-primary bg-background' : 'text-muted'}`}>Preview</button>
       </div>
       
-      {/* Import/Metadata/Projects/Save modals remain unchanged... (snipped for brevity, but logically present) */}
+      {/* Import/Metadata/Projects/Save modals remain unchanged... */}
       <AnimatePresence>
         {showImportModal && (
             <motion.div 
@@ -698,7 +698,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Metadata Modal */}
+      {/* Metadata Modal, Save Modal, Projects Modal code remains the same as previous output ... */}
       <AnimatePresence>
         {showMetadataModal && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -797,7 +797,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Save Project Modal */}
       <AnimatePresence>
         {showSaveModal && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -832,7 +831,6 @@ export default function App() {
         )}
       </AnimatePresence>
       
-      {/* Projects List Modal */}
       <AnimatePresence>
         {showProjectsModal && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
 import { formatTimestamp } from '../utils/lyrics';
@@ -60,7 +61,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (audio && Math.abs(audio.currentTime - currentTime) > 0.5 && !isDragging) {
+    if (audio && Math.abs(audio.currentTime - currentTime) > 0.05 && !isDragging) {
       audio.currentTime = currentTime;
       setLocalTime(currentTime);
     }
@@ -109,7 +110,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       
       {/* Sleek Progress Bar */}
       <div className="flex items-center gap-3 group relative py-2">
-        <span className="text-[10px] font-mono text-muted tabular-nums w-10 text-right">{formatTimestamp(localTime, 2).split('.')[0]}</span>
+        <span className="text-[10px] font-mono text-muted tabular-nums w-16 text-right">{formatTimestamp(localTime, 3)}</span>
         
         <div className="relative flex-1 h-1 bg-white/10 rounded-full cursor-pointer group-hover:h-1.5 transition-all">
             {/* Filled Track */}
@@ -128,6 +129,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 type="range" 
                 min="0" 
                 max={duration || 100} 
+                step="0.001"
                 value={isDragging ? localTime : (audioRef.current?.currentTime || 0)} 
                 onChange={handleSeek}
                 onMouseDown={() => setIsDragging(true)}
@@ -137,7 +139,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             />
         </div>
         
-        <span className="text-[10px] font-mono text-muted tabular-nums w-10">{formatTimestamp(duration, 2).split('.')[0]}</span>
+        <span className="text-[10px] font-mono text-muted tabular-nums w-16">{formatTimestamp(duration, 3)}</span>
       </div>
 
       {/* Minimal Controls */}

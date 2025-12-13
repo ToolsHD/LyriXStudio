@@ -567,12 +567,21 @@ export const generateTTML = (doc: LyricsDocument): string => {
         attrStr = ` itunes:key="L${i+1}"`;
     }
 
+    if (line.isBackground) {
+        if (!attrStr.includes('ttm:role') && !attrStr.includes('role=')) {
+             attrStr += ' ttm:role="x-bg"';
+        }
+    }
+
     output += `      <p begin="${begin}" end="${end}" ttm:agent="${agentId}"${attrStr}>\n`;
     
     line.words.forEach(w => {
         const wStart = formatTimestamp(w.startTime, 3);
         const wEnd = w.endTime ? formatTimestamp(w.endTime, 3) : formatTimestamp(w.startTime + 0.5, 3);
-        const bgRole = w.isBackground ? ' ttm:role="x-bg"' : '';
+        
+        // Only add role if differs from line. If line is BG, word inherits BG.
+        // If line is NOT BG, but word IS BG, add role.
+        const bgRole = (w.isBackground && !line.isBackground) ? ' ttm:role="x-bg"' : '';
         output += `        <span begin="${wStart}" end="${wEnd}"${bgRole}>${w.text}</span>\n`;
     });
 
@@ -585,6 +594,7 @@ export const generateTTML = (doc: LyricsDocument): string => {
   return output;
 };
 
+// Batch shift all timestamps
 export const shiftTimestamps = (doc: LyricsDocument, offsetSeconds: number): LyricsDocument => {
   const newLines = doc.lines.map(line => ({
     ...line,
@@ -597,4 +607,56 @@ export const shiftTimestamps = (doc: LyricsDocument, offsetSeconds: number): Lyr
     }))
   }));
   return { ...doc, lines: newLines };
+};
+
+// Shift a single line (and its words) to a new start time
+export const shiftLine = (line: TimedLine, newStartTime: number): TimedLine => {
+  const diff = newStartTime - line.startTime;
+  const safeDiff = (val: number) => Math.max(0, val + diff);
+  
+  return {
+    ...line,
+    startTime: Math.max(0, newStartTime),
+    endTime: line.endTime ? safeDiff(line.endTime) : undefined,
+    words: line.words.map(w => ({
+      ...w,
+      startTime: safeDiff(w.startTime),
+      endTime: w.endTime ? safeDiff(w.endTime) : undefined
+    }))
+  };
+};
+
+export const detectAudioSilence = async (audioSrc: string): Promise<number | null> => {
+    try {
+        const response = await fetch(audioSrc);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        const rawData = audioBuffer.getChannelData(0); // Left channel
+        const sampleRate = audioBuffer.sampleRate;
+        const bufferLength = rawData.length;
+        
+        // Window size for RMS (e.g., 50ms)
+        const windowSize = Math.floor(sampleRate * 0.05);
+        const threshold = 0.015; // -36dB approx
+        
+        for (let i = 0; i < bufferLength; i += windowSize) {
+            let sum = 0;
+            // Calculate RMS for this window
+            const end = Math.min(i + windowSize, bufferLength);
+            for (let j = i; j < end; j++) {
+                sum += rawData[j] * rawData[j];
+            }
+            const rms = Math.sqrt(sum / (end - i));
+            
+            if (rms > threshold) {
+                return Math.max(0, (i / sampleRate) - 0.2); // Return time slightly before onset
+            }
+        }
+        return null;
+    } catch (e) {
+        console.error("Silence detection failed", e);
+        return null;
+    }
 };
