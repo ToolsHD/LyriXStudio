@@ -12,10 +12,10 @@ import {
     Settings, PlayCircle, Layers, ChevronRight,
     Download, RefreshCw, X, ScrollText, Trash2, Disc, Menu, Check,
     Import, FileAudio, FileCode, Clipboard, Undo2, Redo2, FileEdit,
-    Search
+    Search, Copy
 } from 'lucide-react';
 // @ts-ignore
-import { diffLines } from 'diff';
+import * as Diff from 'diff';
 // @ts-ignore
 import ISO6391 from 'iso-639-1';
 
@@ -26,7 +26,7 @@ const LANGUAGES = ISO6391.getAllCodes().map((code: string) => ({
     name: ISO6391.getName(code)
 })).sort((a: any, b: any) => a.name.localeCompare(b.name));
 
-const App: React.FC = () => {
+export default function App() {
   const [lyricsDoc, setLyricsDoc] = useState<LyricsDocument>({ format: LyricsFormat.PLAIN, lines: [], metadata: {} });
   const [originalDoc, setOriginalDoc] = useState<LyricsDocument | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -52,6 +52,7 @@ const App: React.FC = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [copiedFormat, setCopiedFormat] = useState<string | null>(null);
   
   const [projectNameInput, setProjectNameInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
@@ -297,7 +298,7 @@ const App: React.FC = () => {
     );
   }, [lyricsDoc]);
 
-  const handleExport = (format: 'LRC' | 'ELRC' | 'TTML') => {
+  const handleDownload = (format: 'LRC' | 'ELRC' | 'TTML') => {
     let output = '';
     let ext = 'lrc';
     switch (format) {
@@ -315,6 +316,23 @@ const App: React.FC = () => {
     setShowExportMenu(false);
   };
 
+  const handleCopy = async (format: 'LRC' | 'ELRC' | 'TTML') => {
+      let output = '';
+      switch (format) {
+        case 'LRC': output = generateLRC(lyricsDoc); break;
+        case 'ELRC': output = generateELRC(lyricsDoc); break;
+        case 'TTML': output = generateTTML(lyricsDoc); break;
+      }
+      try {
+          await navigator.clipboard.writeText(output);
+          setCopiedFormat(format);
+          setTimeout(() => setCopiedFormat(null), 2000);
+      } catch (err) {
+          console.error('Failed to copy', err);
+          alert('Failed to copy to clipboard');
+      }
+  };
+
   const handleShiftTiming = (amountMs: number) => {
     const newDoc = shiftTimestamps(lyricsDoc, amountMs / 1000);
     updateLyricsDoc(newDoc);
@@ -324,7 +342,7 @@ const App: React.FC = () => {
       if (!originalDoc) return null;
       const oldText = generateLRC(originalDoc);
       const newText = generateLRC(lyricsDoc);
-      const changes = diffLines(oldText, newText);
+      const changes = Diff.diffLines(oldText, newText);
 
       return (
           <div className="font-mono text-xs leading-relaxed whitespace-pre-wrap">
@@ -347,7 +365,7 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen text-text bg-background font-sans overflow-hidden">
       
       {/* Header - Solid Surface */}
-      <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 shrink-0 z-40 relative">
+      <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 shrink-0 z-50 relative">
         {/* Left: Brand */}
         <div className="flex items-center gap-3 w-1/4">
             <Logo size={36} className="shadow-sm" />
@@ -406,38 +424,63 @@ const App: React.FC = () => {
                  </button>
                  <AnimatePresence>
                     {showExportMenu && (
-                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 5 }} className="absolute top-full right-0 mt-2 w-52 bg-card border border-border rounded-lg shadow-xl p-1 flex flex-col z-50 origin-top-right">
-                            <span className="text-[10px] uppercase font-bold text-muted px-3 py-2 border-b border-border mb-1">Download As</span>
-                            <button onClick={() => handleExport('LRC')} className="flex items-center justify-between px-3 py-2 hover:bg-surface rounded text-xs font-medium text-left transition-colors">
-                                <div>
-                                    <span className="block text-text">Standard LRC</span>
-                                    <span className="text-[10px] text-muted">Line-synced</span>
-                                </div>
-                                <span className="text-[10px] text-muted bg-background px-1.5 py-0.5 rounded border border-border">.lrc</span>
-                            </button>
-                            {hasWordSync() ? (
-                                <button onClick={() => handleExport('ELRC')} className="flex items-center justify-between px-3 py-2 hover:bg-surface rounded text-xs font-medium text-left transition-colors">
-                                    <div>
-                                        <span className="block text-text">Enhanced LRC</span>
-                                        <span className="text-[10px] text-muted">Word-synced</span>
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 5 }} className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50 origin-top-right">
+                            <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface/50">
+                                <span className="text-[10px] uppercase font-bold text-muted">Export As</span>
+                                <button onClick={() => setShowExportMenu(false)}><X size={12} className="text-muted hover:text-text"/></button>
+                            </div>
+                            
+                            {/* Formats List */}
+                            <div className="p-1 space-y-0.5">
+                                {/* LRC */}
+                                <div className="flex items-center justify-between px-3 py-2 hover:bg-surface rounded transition-colors group">
+                                    <div className="flex-1">
+                                        <span className="block text-xs font-medium text-text">Standard LRC</span>
+                                        <span className="text-[10px] text-muted">Line-synced (.lrc)</span>
                                     </div>
-                                    <span className="text-[10px] text-muted bg-background px-1.5 py-0.5 rounded border border-border">.lrc</span>
-                                </button>
-                            ) : (
-                                <div className="px-3 py-2 rounded text-xs font-medium text-left opacity-50 cursor-not-allowed">
-                                    <div>
-                                        <span className="block">Enhanced LRC</span>
-                                        <span className="text-[10px] text-error">No word timings</span>
+                                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleCopy('LRC')} className="p-1.5 text-muted hover:text-accent-primary hover:bg-card border border-transparent hover:border-border rounded transition-all" title="Copy">
+                                            {copiedFormat === 'LRC' ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                                        </button>
+                                        <button onClick={() => handleDownload('LRC')} className="p-1.5 text-muted hover:text-accent-primary hover:bg-card border border-transparent hover:border-border rounded transition-all" title="Download">
+                                            <Download size={14} />
+                                        </button>
                                     </div>
                                 </div>
-                            )}
-                            <button onClick={() => handleExport('TTML')} className="flex items-center justify-between px-3 py-2 hover:bg-surface rounded text-xs font-medium text-left transition-colors">
-                                <div>
-                                    <span className="block text-text">Apple TTML</span>
-                                    <span className="text-[10px] text-muted">XML + Styles</span>
+
+                                {/* ELRC */}
+                                <div className={`flex items-center justify-between px-3 py-2 hover:bg-surface rounded transition-colors group ${!hasWordSync() ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <div className="flex-1">
+                                        <span className="block text-xs font-medium text-text">Enhanced LRC</span>
+                                        <span className="text-[10px] text-muted">Word-synced (.lrc)</span>
+                                        {!hasWordSync() && <span className="text-[9px] text-error block">No word timings</span>}
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => hasWordSync() && handleCopy('ELRC')} className="p-1.5 text-muted hover:text-accent-primary hover:bg-card border border-transparent hover:border-border rounded transition-all" title="Copy">
+                                            {copiedFormat === 'ELRC' ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                                        </button>
+                                        <button onClick={() => hasWordSync() && handleDownload('ELRC')} className="p-1.5 text-muted hover:text-accent-primary hover:bg-card border border-transparent hover:border-border rounded transition-all" title="Download">
+                                            <Download size={14} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] text-muted bg-background px-1.5 py-0.5 rounded border border-border">.ttml</span>
-                            </button>
+
+                                {/* TTML */}
+                                <div className="flex items-center justify-between px-3 py-2 hover:bg-surface rounded transition-colors group">
+                                    <div className="flex-1">
+                                        <span className="block text-xs font-medium text-text">Apple TTML</span>
+                                        <span className="text-[10px] text-muted">XML + Styles (.ttml)</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleCopy('TTML')} className="p-1.5 text-muted hover:text-accent-primary hover:bg-card border border-transparent hover:border-border rounded transition-all" title="Copy">
+                                            {copiedFormat === 'TTML' ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                                        </button>
+                                        <button onClick={() => handleDownload('TTML')} className="p-1.5 text-muted hover:text-accent-primary hover:bg-card border border-transparent hover:border-border rounded transition-all" title="Download">
+                                            <Download size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </motion.div>
                     )}
                  </AnimatePresence>
@@ -456,7 +499,7 @@ const App: React.FC = () => {
                 width: window.innerWidth < 768 ? '100%' : '420px',
                 position: window.innerWidth < 768 ? 'absolute' : 'relative'
             }}
-            className="h-full flex flex-col bg-surface border-r border-border z-20 shadow-lg"
+            className="h-full flex flex-col bg-surface border-r border-border z-40 shadow-lg"
           >
              {lyricsDoc.lines.length === 0 ? (
                  <div 
@@ -554,8 +597,8 @@ const App: React.FC = () => {
         <button onClick={() => setActiveTab('editor')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest ${activeTab === 'editor' ? 'text-accent-primary bg-background' : 'text-muted'}`}>Editor</button>
         <button onClick={() => setActiveTab('preview')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest ${activeTab === 'preview' ? 'text-accent-primary bg-background' : 'text-muted'}`}>Preview</button>
       </div>
-
-      {/* Unified Import Modal */}
+      
+      {/* Import/Metadata/Projects/Save modals remain unchanged... (snipped for brevity, but logically present) */}
       <AnimatePresence>
         {showImportModal && (
             <motion.div 
@@ -807,7 +850,8 @@ const App: React.FC = () => {
                                             {p.audioBlob || p.audioSrc ? <Disc size={20}/> : <FileText size={20}/>}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-sm text-text">{p.name}</div>
+                                            {/* Truncated Name with Line Clamp */}
+                                            <div className="font-bold text-sm text-text line-clamp-2 break-words">{p.name}</div>
                                             <div className="text-[10px] text-muted flex gap-2">
                                                 <span>{new Date(p.updatedAt).toLocaleDateString()}</span>
                                                 <span>•</span>
@@ -836,6 +880,4 @@ const App: React.FC = () => {
       </AnimatePresence>
     </div>
   );
-};
-
-export default App;
+}

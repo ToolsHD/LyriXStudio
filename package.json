@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.0",
-    "react": "^19.2.0",
+    "react-dom": "^19.2.3",
+    "react": "^19.2.3",
     "framer-motion": "11.0.8",
     "lucide-react": "0.344.0",
     "diff": "5.2.0",

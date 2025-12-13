@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LyricsDocument, TimedLine, TimedWord } from '../types';
 import { generateId, parseTimestamp, formatTimestamp } from '../utils/lyrics';
-import { Trash2, Plus, ChevronUp, ChevronDown, Split, PlayCircle, Mic2, Users, X, UserCog, Check } from 'lucide-react';
+import { Trash2, Plus, ChevronUp, ChevronDown, Split, PlayCircle, X, UserCog, Users, Minus } from 'lucide-react';
 
 interface LyricsEditorProps {
   doc: LyricsDocument;
@@ -17,14 +18,14 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
   const [expandedLineId, setExpandedLineId] = useState<string | null>(null);
   const [globalWordMode, setGlobalWordMode] = useState(false);
   const [showVoiceManager, setShowVoiceManager] = useState(false);
-  const [mobileVoiceEditMode, setMobileVoiceEditMode] = useState(false);
+  const [voiceEditMode, setVoiceEditMode] = useState(false);
 
   // Initialize voices from doc if empty
   useEffect(() => {
       if (definedVoices.length === 0) {
           const unique = Array.from(new Set(doc.lines.map(l => l.voice).filter(Boolean))) as string[];
           if (unique.length > 0) setDefinedVoices(unique);
-          else setDefinedVoices(['Singer 1', 'Singer 2']);
+          else setDefinedVoices(['v1', 'v2']);
       }
   }, [doc.lines]);
 
@@ -156,10 +157,39 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
       onUpdate({ ...doc, lines: newLines }, true);
   };
 
-  const handleAddVoice = (name: string) => {
-      if (name && !definedVoices.includes(name)) {
-          setDefinedVoices([...definedVoices, name]);
+  const setVoiceCount = (count: number) => {
+      if (count < 1) return;
+      const current = [...definedVoices];
+      if (count > current.length) {
+          for (let i = current.length; i < count; i++) {
+               // Try to find next logical V number, or just append
+               let nextNum = i + 1;
+               while (current.includes(`v${nextNum}`)) nextNum++;
+               current.push(`v${nextNum}`);
+          }
+      } else {
+          current.length = count;
       }
+      setDefinedVoices(current);
+  };
+
+  const cycleVoice = (lineId: string, currentVoice?: string) => {
+      if (definedVoices.length === 0) {
+          // If empty, init default and assign V1
+          setDefinedVoices(['v1', 'v2']);
+          updateLine(lineId, { voice: 'v1' });
+          return;
+      }
+      
+      const currentIndex = currentVoice ? definedVoices.indexOf(currentVoice) : -1;
+      let nextVoice = definedVoices[0];
+      
+      if (currentIndex !== -1) {
+          // Continuous loop: 0 -> 1 -> ... -> N -> 0
+          nextVoice = definedVoices[(currentIndex + 1) % definedVoices.length];
+      }
+      
+      updateLine(lineId, { voice: nextVoice });
   };
 
   return (
@@ -179,8 +209,8 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
             </button>
             
             <button 
-                onClick={() => setMobileVoiceEditMode(!mobileVoiceEditMode)}
-                className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors md:hidden ${mobileVoiceEditMode ? 'bg-accent-primary text-white' : 'text-muted hover:text-text'}`}
+                onClick={() => setVoiceEditMode(!voiceEditMode)}
+                className={`hidden md:flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${voiceEditMode ? 'bg-accent-primary text-white' : 'text-muted hover:text-text'}`}
                 title="Toggle Voice Assignment Buttons"
             >
                 <UserCog size={14} />
@@ -200,25 +230,38 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
       <AnimatePresence>
         {showVoiceManager && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-b border-border bg-background">
-                <div className="p-3 grid grid-cols-2 gap-2">
-                    {definedVoices.map(v => (
-                        <div key={v} className="flex items-center justify-between bg-card px-2 py-1 rounded border border-border text-xs">
-                            <span className="text-text">{v}</span>
-                            <button className="text-muted hover:text-error" onClick={() => setDefinedVoices(definedVoices.filter(dv => dv !== v))}><X size={12} /></button>
-                        </div>
-                    ))}
-                    <div className="flex items-center gap-1">
-                        <input 
-                            className="flex-1 bg-surface border border-border rounded px-2 py-1 text-xs outline-none focus:border-accent-primary text-text"
-                            placeholder="New Voice..."
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    handleAddVoice(e.currentTarget.value);
-                                    e.currentTarget.value = '';
-                                }
-                            }}
-                        />
+                <div className="p-4 flex items-center justify-between">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-bold text-text">Voice Configuration</span>
+                        <span className="text-[10px] text-muted">Auto-generated IDs (v1, v2...)</span>
                     </div>
+                    
+                    <div className="flex items-center gap-3 bg-surface p-1 rounded-lg border border-border">
+                        <button 
+                            onClick={() => setVoiceCount(definedVoices.length - 1)}
+                            className="w-8 h-8 flex items-center justify-center rounded hover:bg-card hover:text-accent-primary disabled:opacity-30 transition-colors"
+                            disabled={definedVoices.length <= 1}
+                        >
+                            <Minus size={16} />
+                        </button>
+                        <div className="flex flex-col items-center w-12">
+                            <span className="text-lg font-bold text-text leading-none">{definedVoices.length}</span>
+                        </div>
+                        <button 
+                            onClick={() => setVoiceCount(definedVoices.length + 1)}
+                            className="w-8 h-8 flex items-center justify-center rounded hover:bg-card hover:text-accent-primary transition-colors"
+                        >
+                            <Plus size={16} />
+                        </button>
+                    </div>
+                </div>
+                {/* Active Voices Preview */}
+                <div className="px-4 pb-3 flex flex-wrap gap-2">
+                    {definedVoices.map(v => (
+                        <span key={v} className="px-2 py-1 bg-surface border border-border rounded text-[10px] text-muted font-mono">
+                            {v}
+                        </span>
+                    ))}
                 </div>
             </motion.div>
         )}
@@ -229,6 +272,7 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
         {doc.lines.map((line, idx) => {
             const isActive = currentTime >= line.startTime && (!doc.lines[idx+1] || currentTime < doc.lines[idx+1].startTime);
             const showWords = globalWordMode || expandedLineId === line.id;
+            const showTools = isActive || line.voice || line.isBackground || voiceEditMode;
 
             return (
                 <div 
@@ -253,7 +297,7 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
                              <div className="relative">
                                 <textarea
                                     className={`
-                                        w-full bg-transparent resize-none outline-none text-sm font-medium leading-relaxed
+                                        w-full bg-transparent resize-none outline-none text-sm font-medium leading-relaxed break-words
                                         ${isActive ? 'text-text' : 'text-text/90'}
                                     `}
                                     rows={1}
@@ -264,10 +308,11 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
                                     style={{ minHeight: '1.5rem', height: 'auto' }}
                                     onInput={(e) => { e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; }}
                                 />
-                                {/* Voice Indicator */}
-                                {(line.voice || mobileVoiceEditMode) && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {mobileVoiceEditMode ? (
+                                
+                                {/* Voice & BG Tools */}
+                                {showTools && (
+                                    <div className="flex flex-wrap gap-1 mt-1 min-h-[20px] items-center">
+                                        {voiceEditMode ? (
                                              definedVoices.map(v => (
                                                 <button 
                                                     key={v}
@@ -278,7 +323,19 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
                                                 </button>
                                              ))
                                         ) : (
-                                            line.voice && <span className="px-1.5 py-0.5 bg-accent-primary/20 text-accent-primary rounded text-[10px] font-bold border border-accent-primary/20">{line.voice}</span>
+                                            <button 
+                                                onClick={() => cycleVoice(line.id, line.voice)}
+                                                className={`
+                                                    px-1.5 py-0.5 text-[10px] rounded border font-bold transition-colors
+                                                    ${line.voice 
+                                                        ? 'bg-accent-primary/20 text-accent-primary border-accent-primary/20' 
+                                                        : 'text-muted border-dashed border-border hover:bg-surface hover:text-text'
+                                                    }
+                                                `}
+                                                title="Cycle Voice"
+                                            >
+                                                {line.voice || "+ Voice"}
+                                            </button>
                                         )}
                                         {/* Background Vocal Toggle */}
                                         <button 
@@ -294,7 +351,7 @@ const LyricsEditor: React.FC<LyricsEditorProps> = ({ doc, onUpdate, onSeek, curr
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className={`flex flex-col gap-1 transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
                             <button onClick={() => deleteLine(line.id)} className="text-muted hover:text-error p-1"><Trash2 size={12} /></button>
                             <button onClick={() => addLine(idx)} className="text-muted hover:text-accent-primary p-1"><Plus size={12} /></button>
                             <button onClick={() => setExpandedLineId(expandedLineId === line.id ? null : line.id)} className="text-muted hover:text-text p-1">

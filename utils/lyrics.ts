@@ -136,7 +136,7 @@ const parseLRC = (text: string): LyricsDocument => {
         const isBackground = content.startsWith('(') && content.endsWith(')');
         
         // Detect Voice
-        let voice: string = 'v1'; // Default voice for LRC import
+        let voice: string | undefined = undefined;
         const voiceMatch = content.match(/^([A-Za-z0-9\s]+):\s+(.*)/);
         if (voiceMatch) {
              voice = voiceMatch[1].trim();
@@ -449,7 +449,7 @@ export const parseLyrics = (text: string, format?: LyricsFormat): LyricsDocument
         startTime: 0, 
         words: l.trim().split(/\s+/).map(w => ({ id: generateId(), text: w, startTime: 0 })),
         rawText: l.trim(),
-        voice: 'v1'
+        voice: undefined
       }));
       return { format: LyricsFormat.PLAIN, lines, metadata: { title: '', artist: '', album: '', custom: {} } };
   }
@@ -476,6 +476,7 @@ export const generateLRC = (doc: LyricsDocument): string => {
   }
   
   doc.lines.forEach(line => {
+    // Generate clean LRC without voice prefix, just pure text
     output += `[${formatTimestamp(line.startTime, 2)}]${line.rawText}\n`;
   });
   return output;
@@ -489,9 +490,16 @@ export const generateELRC = (doc: LyricsDocument): string => {
   if (m.album) output += `[al:${m.album}]\n`;
   
   doc.lines.forEach(line => {
-    output += `[${formatTimestamp(line.startTime, 2)}]`;
+    // Preserve voice prefix if present for ELRC
+    const voicePrefix = line.voice ? `${line.voice}: ` : '';
+    output += `[${formatTimestamp(line.startTime, 2)}]${voicePrefix}`;
     line.words.forEach(w => {
-        output += ` <${formatTimestamp(w.startTime, 2)}>${w.text}`;
+        let text = w.text;
+        // Append BG data (visual) for ELRC: wrap in parens if not already present
+        if ((line.isBackground || w.isBackground) && !text.startsWith('(') && !text.endsWith(')')) {
+            text = `(${text})`;
+        }
+        output += ` <${formatTimestamp(w.startTime, 2)}>${text}`;
     });
     output += '\n';
   });
