@@ -12,7 +12,8 @@ import {
     Settings, PlayCircle, Layers, ChevronRight,
     Download, RefreshCw, X, ArrowDownWideNarrow, Trash2, Disc, Menu, Check,
     Import, FileAudio, FileCode, Clipboard, Undo2, Redo2, FileEdit,
-    Search, Copy, ScrollText
+    Search, Copy, ScrollText, HelpCircle,
+    Clock, Timer, Users, UserCog, Split, Sparkles, Keyboard, MousePointerClick
 } from 'lucide-react';
 // @ts-ignore
 import * as Diff from 'diff';
@@ -52,6 +53,7 @@ export default function App() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showMetadataModal, setShowMetadataModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState<string | null>(null);
   
   const [projectNameInput, setProjectNameInput] = useState('');
@@ -217,6 +219,22 @@ export default function App() {
                   redo();
               }
           }
+
+          // Help Shortcut (?)
+          if (e.key === '?' && !['input', 'textarea'].includes(document.activeElement?.tagName.toLowerCase() || '')) {
+              e.preventDefault();
+              setShowHelpModal(prev => !prev);
+          }
+
+          // Escape closes modals
+          if (e.key === 'Escape') {
+              setShowHelpModal(false);
+              setShowImportModal(false);
+              setShowProjectsModal(false);
+              setShowSaveModal(false);
+              setShowMetadataModal(false);
+              setShowExportMenu(false);
+          }
       };
 
       const handleGlobalPaste = (e: ClipboardEvent) => {
@@ -248,7 +266,7 @@ export default function App() {
           window.removeEventListener('keydown', handleKeyDown);
           window.removeEventListener('paste', handleGlobalPaste);
       };
-  }, [lyricsDoc, history, historyIndex, audioSrc]);
+  }, [lyricsDoc, history, historyIndex, audioSrc, showHelpModal, showImportModal, showProjectsModal, showSaveModal, showMetadataModal]);
 
   const processFile = async (file: File) => {
     if (file.name.match(/\.(mp3|m4a|wav|ogg)$/i)) {
@@ -402,6 +420,10 @@ export default function App() {
         
         {/* Right: Actions */}
         <div className="flex items-center justify-end gap-3 w-1/4">
+             <button onClick={() => setShowHelpModal(true)} className="p-2 text-muted hover:text-text rounded-md transition-colors md:mr-2" title="Help & Shortcuts (?)">
+                <HelpCircle size={18} />
+             </button>
+
              <div className="hidden md:flex bg-card px-1 py-1 rounded-lg border border-border">
                  <button onClick={() => setShowProjectsModal(true)} className="p-2 text-muted hover:text-text rounded-md transition-colors" title="Open Project">
                     <Folder size={18} />
@@ -555,7 +577,6 @@ export default function App() {
                              <Layers size={18} />
                          </button>
                     </div>
-                    {/* Removed redundant -0.1s / +0.1s floating buttons as per request */}
                 </div>
 
                 {/* Diff View Overlay */}
@@ -598,6 +619,102 @@ export default function App() {
         <button onClick={() => setActiveTab('preview')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest ${activeTab === 'preview' ? 'text-accent-primary bg-background' : 'text-muted'}`}>Preview</button>
       </div>
       
+      {/* Help Modal */}
+      <AnimatePresence>
+        {showHelpModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-card border border-border rounded-lg w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+                    {/* Modal Header */}
+                    <div className="flex justify-between items-center p-4 border-b border-border bg-surface shrink-0">
+                        <h3 className="text-lg font-bold flex items-center gap-2 text-text">
+                            <HelpCircle size={20} className="text-accent-primary"/> 
+                            Help & Reference
+                        </h3>
+                        <button onClick={() => setShowHelpModal(false)} className="p-1 hover:bg-background rounded-full transition-colors"><X size={20} className="text-muted hover:text-text"/></button>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                        
+                        {/* 1. Quick Start */}
+                        <section>
+                            <h4 className="text-sm font-bold text-muted uppercase mb-3 flex items-center gap-2">
+                                <Sparkles size={14}/> Quick Start
+                            </h4>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <div className="bg-background border border-border rounded-lg p-3">
+                                    <div className="w-8 h-8 rounded bg-accent-primary/10 flex items-center justify-center text-accent-primary mb-2 font-bold">1</div>
+                                    <div className="text-sm font-bold mb-1">Import</div>
+                                    <p className="text-xs text-muted">Drag & drop Audio (MP3/WAV) and Lyrics (LRC/TXT) files, or paste from clipboard.</p>
+                                </div>
+                                <div className="bg-background border border-border rounded-lg p-3">
+                                    <div className="w-8 h-8 rounded bg-accent-primary/10 flex items-center justify-center text-accent-primary mb-2 font-bold">2</div>
+                                    <div className="text-sm font-bold mb-1">Sync & Edit</div>
+                                    <p className="text-xs text-muted">Use the Player to seek. Click lines to jump. Edit text directly or use tools to shift timing.</p>
+                                </div>
+                                <div className="bg-background border border-border rounded-lg p-3">
+                                    <div className="w-8 h-8 rounded bg-accent-primary/10 flex items-center justify-center text-accent-primary mb-2 font-bold">3</div>
+                                    <div className="text-sm font-bold mb-1">Export</div>
+                                    <p className="text-xs text-muted">Download as TTML (for Apple Music) or Enhanced LRC (for standard players).</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 2. Shortcuts */}
+                        <section>
+                            <h4 className="text-sm font-bold text-muted uppercase mb-3 flex items-center gap-2">
+                                <Keyboard size={14}/> Keyboard Shortcuts
+                            </h4>
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Save Project</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + S</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Undo</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + Z</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Redo</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + Y</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Paste Lyrics/Audio</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + V</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Add Line</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + Enter</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Delete Line</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + Backspace</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Toggle Word Mode</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">Ctrl + M</kbd></div>
+                                <div className="flex justify-between border-b border-border/50 pb-1"><span>Toggle Help</span> <kbd className="bg-surface px-1.5 rounded text-xs border border-border font-mono">?</kbd></div>
+                            </div>
+                        </section>
+
+                        {/* 3. Icon Legend */}
+                        <section>
+                            <h4 className="text-sm font-bold text-muted uppercase mb-3 flex items-center gap-2">
+                                <MousePointerClick size={14}/> Interface Icons
+                            </h4>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <h5 className="text-xs font-bold text-accent-primary mb-2">Header / General</h5>
+                                    <ul className="space-y-2 text-xs">
+                                        <li className="flex items-center gap-3"><Import size={16} className="text-muted"/> <span>Import media files or URLs</span></li>
+                                        <li className="flex items-center gap-3"><Folder size={16} className="text-muted"/> <span>Open saved local projects</span></li>
+                                        <li className="flex items-center gap-3"><Save size={16} className="text-muted"/> <span>Save project (cached in browser)</span></li>
+                                        <li className="flex items-center gap-3"><Download size={16} className="text-muted"/> <span>Export/Download lyrics file</span></li>
+                                        <li className="flex items-center gap-3"><FileEdit size={16} className="text-muted"/> <span>Edit Metadata (Title, Artist, etc.)</span></li>
+                                        <li className="flex items-center gap-3"><Trash2 size={16} className="text-muted"/> <span>Clear all lyrics</span></li>
+                                        <li className="flex items-center gap-3"><Undo2 size={16} className="text-muted"/> <span>Undo last action</span></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h5 className="text-xs font-bold text-accent-primary mb-2">Editor & Preview</h5>
+                                    <ul className="space-y-2 text-xs">
+                                        <li className="flex items-center gap-3"><Clock size={16} className="text-muted"/> <span>Timing Tools (Batch Shift, Silence Detect)</span></li>
+                                        <li className="flex items-center gap-3"><Timer size={16} className="text-muted"/> <span>Line Sync Mode (Tap to sync)</span></li>
+                                        <li className="flex items-center gap-3"><Users size={16} className="text-muted"/> <span>Voice Manager (Add singers)</span></li>
+                                        <li className="flex items-center gap-3"><UserCog size={16} className="text-muted"/> <span>Voice Assign Mode (Toggle buttons)</span></li>
+                                        <li className="flex items-center gap-3"><Split size={16} className="text-muted"/> <span>Word Mode (Edit syllable timings)</span></li>
+                                        <li className="flex items-center gap-3"><ScrollText size={16} className="text-muted"/> <span>Auto-scroll preview</span></li>
+                                        <li className="flex items-center gap-3"><Layers size={16} className="text-muted"/> <span>Diff View (Compare with original)</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Import/Metadata/Projects/Save modals remain unchanged... */}
       <AnimatePresence>
         {showImportModal && (
@@ -790,40 +907,6 @@ export default function App() {
 
                         <div className="pt-2">
                              <button onClick={() => setShowMetadataModal(false)} className="w-full py-2 bg-accent-primary rounded text-xs font-bold text-white hover:bg-accent-600">Done</button>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showSaveModal && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-                <div className="bg-card border border-border rounded-lg w-full max-w-sm p-6 shadow-2xl">
-                    <h3 className="text-lg font-bold mb-2 text-text">Save Project</h3>
-                    <p className="text-xs text-muted mb-4">Audio will be downloaded and cached offline.</p>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-xs font-bold text-muted uppercase block mb-1">Project Name</label>
-                            <input 
-                                className="w-full bg-background border border-border rounded p-3 text-sm text-text focus:border-accent-primary outline-none transition-colors" 
-                                placeholder="My Awesome Song" 
-                                value={projectNameInput} 
-                                onChange={(e) => setProjectNameInput(e.target.value)} 
-                                autoFocus
-                            />
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                            <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-xs font-bold text-muted hover:text-text">Cancel</button>
-                            <button 
-                                onClick={handleSaveProject} 
-                                disabled={isSaving || !projectNameInput.trim()}
-                                className="px-4 py-2 bg-accent-primary rounded text-xs text-white font-bold hover:bg-accent-600 transition-colors disabled:opacity-50 flex items-center gap-2"
-                            >
-                                {isSaving ? <RefreshCw className="animate-spin" size={14}/> : <Save size={14}/>}
-                                {isSaving ? <span className="animate-pulse">Saving...</span> : 'Save'}
-                            </button>
                         </div>
                     </div>
                 </div>
